@@ -18,7 +18,7 @@ export const traceTree = [
     run_type: "llm",
     start_time: "2025-06-26T14:47:47.675128",
     end_time: "2025-06-26T14:47:53.965517",
-    error: null,
+    error: "Error executing llm run",
     parent_run_id: "04407860-4ca3-436b-b584-92552390badf",
     trace_id: "1f0529c8-196c-6c5b-84a2-604f11dc8e42",
     parent_run_ids: [
@@ -28,7 +28,7 @@ export const traceTree = [
     total_tokens: 12995,
     total_cost: 0.0057812,
     id: "429e5a2b-a48f-4f99-8ca9-ca225da387f7",
-    status: "success",
+    status: "error",
   },
   {
     name: "respond",
