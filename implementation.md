@@ -29,11 +29,12 @@
 - Error states provide clear feedback when things go wrong
 - Loading states show indicators during data fetching
 
-# Improvements
+# Future Improvements
 
 ## Performance
 - Server side pagination/filtering to prevent downloading all trace data at once
 - Cache loaded nodes or frequently accessed ones
 
 ## Trace Viewer
-- Add additional search options for status, run type, and status
+- Add additional search options for status, run type, id, and status
+- Collapse all, expand all functionality

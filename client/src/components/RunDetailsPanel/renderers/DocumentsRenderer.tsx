@@ -19,17 +19,6 @@ const DocumentsRenderer = ({ documents }: DocumentsRendererProps) => {
                 Document {index + 1}
               </span>
             </div>
-            {doc.metadata?.source && (
-              <a
-                href={doc.metadata.source}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
-              >
-                <ExternalLink className="w-3 h-3" />
-                Source
-              </a>
-            )}
           </div>
           
           {doc.metadata?.title && (
@@ -42,7 +31,7 @@ const DocumentsRenderer = ({ documents }: DocumentsRendererProps) => {
           {doc.metadata?.source && (
             <div className="mb-2">
               <span className="text-xs text-gray-500">Source:</span>
-              <span className="ml-2 text-sm text-blue-600 break-all">{doc.metadata.source}</span>
+              <a href={doc.metadata.source} target="_blank" rel="noopener noreferrer" className="ml-2 text-sm text-blue-600 break-all">{doc.metadata.source}</a>
             </div>
           )}
 
