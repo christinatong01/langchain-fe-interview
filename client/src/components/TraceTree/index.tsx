@@ -31,6 +31,7 @@ const formatDuration = (startTime: string, endTime: string | null): string => {
  */
 function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [loadedChildren, setLoadedChildren] = useState<Set<string>>(new Set());
   const [nameFilter, setNameFilter] = useState('');
 
   // filter nodes by name and their children
@@ -60,9 +61,15 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
     return nodes.filter(node => matchingNodes.has(node.id));
   }, [nodes, nameFilter]);
 
-  // build expanded tree structure
+  // build expanded tree structure with lazy loading
   const treeNodes = useMemo(() => {
-    const tree = buildTraceTree(filteredNodes);
+    // Only process nodes that are root nodes or have loaded children
+    const nodesToProcess = filteredNodes.filter(node => 
+      !node.parent_run_id || loadedChildren.has(node.parent_run_id)
+    );
+    console.log('nodesToProcess', nodesToProcess);
+    
+    const tree = buildTraceTree(nodesToProcess);
     
     const applyExpandedState = (nodes: TreeNode[]): TreeNode[] => {
       return nodes.map(node => ({
@@ -73,7 +80,7 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
     };
     
     return applyExpandedState(tree);
-  }, [filteredNodes, expandedNodes]);
+  }, [filteredNodes, expandedNodes, loadedChildren]);
 
   const handleNodeSelect = (node: TreeNode) => {
     onNodeSelect?.(node);
@@ -86,13 +93,19 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         newSet.delete(nodeId);
       } else {
         newSet.add(nodeId);
+        // Load children when expanding for the first time
+        if (!loadedChildren.has(nodeId)) {
+          setLoadedChildren(prevLoaded => new Set([...prevLoaded, nodeId]));
+        }
       }
       return newSet;
     });
   };
 
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
-    const hasChildren = node.children.length > 0;
+    // Check if this node has children in the original data
+    const hasChildrenInData = nodes.some(n => n.parent_run_id === node.id);
+    const hasLoadedChildren = node.children.length > 0;
     const isSelected = selectedNodeId === node.id;
     const isExpanded = expandedNodes.has(node.id);
 
@@ -110,7 +123,7 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         >
           {/* expand/collapse button */}
           <div className="flex items-center mr-2">
-            {hasChildren ? (
+            {hasChildrenInData ? (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -157,7 +170,7 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         </div>
 
         {/* children */}
-        {hasChildren && isExpanded && (
+        {hasLoadedChildren && isExpanded && (
           <div className="mt-1 space-y-1">
             {node.children.map((child) => renderTreeNode(child, depth + 1))}
           </div>

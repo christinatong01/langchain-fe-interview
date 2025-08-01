@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, FileText, MessageSquare } from "lucide-react";
 import { RunContent, RunNode } from "../../types";
 import { getRunTypeColor, getStatusColor } from "../../utils/colors";
+import { DocumentsRenderer, GenerationsRenderer, MessagesRenderer, QueryRenderer, ToolCallsRenderer } from "./renderers";
 
 interface RunDetailsPanelProps {
   selectedNode: RunNode | null;
@@ -139,18 +140,73 @@ function RunDetailsPanel({ selectedNode }: RunDetailsPanelProps) {
         <div className="space-y-4">
           {/* inputs */}
           <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-gray-900 mb-3">Inputs</h4>
-            <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto">
-              {JSON.stringify(runContent.inputs, null, 2)}
-            </pre>
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Inputs
+            </h4>
+
+            {/* handle different input types */}
+            {runContent.inputs.messages ? (
+              <MessagesRenderer messages={runContent.inputs.messages} />
+            ) : runContent.inputs.query ? (
+              <QueryRenderer query={runContent.inputs.query} />
+            ) : (
+              <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto">
+                {JSON.stringify(runContent.inputs, null, 2)}
+              </pre>
+            )}
           </div>
 
           {/* outputs */}
           <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-gray-900 mb-3">Outputs</h4>
-            <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto">
-              {JSON.stringify(runContent.outputs, null, 2)}
-            </pre>
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Outputs
+            </h4>
+
+            <div className="space-y-4">
+              {/* messages */}
+              {runContent.outputs.messages && (
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Messages</h5>
+                  <MessagesRenderer messages={runContent.outputs.messages} />
+                </div>
+              )}
+
+              {/* documents */}
+              {runContent.outputs.documents && (
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Documents</h5>
+                  <DocumentsRenderer documents={runContent.outputs.documents} />
+                </div>
+              )}
+
+              {/* generations */}
+              {runContent.outputs.generations && (
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Generations</h5>
+                  <GenerationsRenderer generations={runContent.outputs.generations} />
+                </div>
+              )}
+
+              {/* tool calls */}
+              {runContent.outputs.tool_calls && (
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Tool Calls</h5>
+                  <ToolCallsRenderer toolCalls={runContent.outputs.tool_calls} />
+                </div>
+              )}
+
+              {/* other outputs */}
+              {!runContent.outputs.messages && 
+               !runContent.outputs.documents && 
+               !runContent.outputs.generations && 
+               !runContent.outputs.tool_calls && (
+                <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto">
+                  {JSON.stringify(runContent.outputs, null, 2)}
+                </pre>
+              )}
+            </div>
           </div>
         </div>
       ) : (
