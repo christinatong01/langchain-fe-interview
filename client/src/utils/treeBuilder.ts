@@ -9,7 +9,6 @@ export interface TreeNode extends RunNode {
 /**
  * Builds a tree structure from a list of nodes (trace tree)
  * @param nodes - The list of nodes to build the tree from.
- * @returns The root nodes of the tree.
  */
 export function buildTraceTree(nodes: RunNode[]): TreeNode[] {
   const nodeMap = new Map<string, TreeNode>();

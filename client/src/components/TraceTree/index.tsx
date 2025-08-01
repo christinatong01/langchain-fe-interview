@@ -4,24 +4,13 @@ import { RunNode } from "../../types";
 import { buildTraceTree, TreeNode } from "../../utils/treeBuilder";
 import { getRunTypeColor, getStatusColor } from '../../utils/colors';
 import { useDebouncedCallback } from 'use-debounce';
+import { formatDuration } from '../../utils/time';
 
 interface TraceTreeProps {
   nodes: RunNode[];
   onNodeSelect?: (node: RunNode) => void;
   selectedNodeId?: string;
 }
-
-const formatDuration = (startTime: string, endTime: string | null): string => {
-  if (!endTime) return "Running...";
-
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  const duration = end.getTime() - start.getTime();
-
-  if (duration < 1000) return `${duration}ms`;
-  if (duration < 60000) return `${(duration / 1000).toFixed(1)}s`;
-  return `${(duration / 60000).toFixed(1)}m`;
-};
 
 /**
  * TraceTree displays a tree of runs with expandable nodes.
@@ -44,6 +33,7 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
     300
   );
 
+  // handlers
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
     debouncedSetSearchTerm(value);
@@ -71,42 +61,63 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
     });
   };
 
-  // filter nodes by name and their children
+  // filter nodes by search term and their children
   const filteredNodes = useMemo(() => {
     if (!debouncedSearchTerm.trim()) return nodes;
 
     const lowerFilter = debouncedSearchTerm.toLowerCase();
     const matchingNodes = new Set<string>();
+    const ancestorNodes = new Set<string>();
 
-    // find matching nodes and their children
+    const addAncestors = (nodeId: string) => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (node?.parent_run_id) {
+        ancestorNodes.add(node.parent_run_id);
+        addAncestors(node.parent_run_id);
+      }
+    };
+
+    const addDescendants = (nodeId: string) => {
+      nodes.forEach(child => {
+        if (child.parent_run_id === nodeId) {
+          matchingNodes.add(child.id);
+          addDescendants(child.id);
+        }
+      });
+    };
+
+    // find matching nodes and their descendants
     nodes.forEach(node => {
       if (node.name.toLowerCase().includes(lowerFilter)) {
         matchingNodes.add(node.id);
-
-        const addChildren = (nodeId: string) => {
-          nodes.forEach(child => {
-            if (child.parent_run_id === nodeId) {
-              matchingNodes.add(child.id);
-              addChildren(child.id);
-            }
-          });
-        };
-        addChildren(node.id);
+        addDescendants(node.id);
       }
     });
 
-    return nodes.filter(node => matchingNodes.has(node.id));
+    // add ancestors of all matching nodes
+    matchingNodes.forEach(nodeId => {
+      addAncestors(nodeId);
+    });
+
+    // return all nodes that are either matching, descendants, or ancestors
+    return nodes.filter(node => 
+      matchingNodes.has(node.id) || 
+      ancestorNodes.has(node.id)
+    );
   }, [nodes, debouncedSearchTerm]);
 
   // build expanded tree structure with lazy loading
   const treeNodes = useMemo(() => {
-    // only process nodes that are root nodes or have loaded children
-    const nodesToProcess = filteredNodes.filter(node =>
-      !node.parent_run_id || loadedChildren.has(node.parent_run_id)
-    );
-
+    // when searching, process all filtered nodes to ensure search results are visible
+    // when not searching, only process nodes that are root nodes or have loaded children
+    const nodesToProcess = debouncedSearchTerm.trim()
+      ? filteredNodes
+      : filteredNodes.filter(node => 
+          !node.parent_run_id || loadedChildren.has(node.parent_run_id)
+        );
+    
     const tree = buildTraceTree(nodesToProcess);
-
+    
     const applyExpandedState = (nodes: TreeNode[]): TreeNode[] => {
       return nodes.map(node => ({
         ...node,
@@ -114,17 +125,17 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         children: applyExpandedState(node.children)
       }));
     };
-
+    
     return applyExpandedState(tree);
-  }, [filteredNodes, expandedNodes, loadedChildren]);
+  }, [filteredNodes, expandedNodes, loadedChildren, debouncedSearchTerm]);
 
   // render tree node
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
     const isSelected = selectedNodeId === node.id;
     const isExpanded = node.isExpanded;
 
-    // check if this node has children in the original data
-    const hasChildrenInData = nodes.some(n => n.parent_run_id === node.id);
+    // check if this node has children in the filtered data
+    const hasChildrenInData = filteredNodes.some(n => n.parent_run_id === node.id);
     const hasLoadedChildren = node.children.length > 0;
 
     return (
@@ -231,10 +242,12 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         )}
       </div>
 
+      {/* render tree nodes */}
       <div className="space-y-1">
         {treeNodes.map((node) => renderTreeNode(node))}
       </div>
-      
+
+      {/* no nodes found */}
       {treeNodes.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           {debouncedSearchTerm ? 'No matching traces found' : 'No trace data available'}
