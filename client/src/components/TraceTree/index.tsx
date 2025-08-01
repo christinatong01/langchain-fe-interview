@@ -25,6 +25,23 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
+  // pre-build search index for fast lookups
+  const searchIndex = useMemo(() => {
+    return nodes.map(node => ({
+      id: node.id,
+      name: node.name.toLowerCase(),
+      parentId: node.parent_run_id
+    }));
+  }, [nodes]);
+
+  // fast search function using index
+  const getMatchingNodeIds = (searchTerm: string) => {
+    const lowerTerm = searchTerm.toLowerCase();
+    return searchIndex
+      .filter(item => item.name.includes(lowerTerm))
+      .map(item => item.id);
+  };
+
   // debounced search
   const debouncedSetSearchTerm = useDebouncedCallback(
     (value: string) => {
@@ -61,63 +78,8 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
     });
   };
 
-  // filter nodes by search term and their children
-  const filteredNodes = useMemo(() => {
-    if (!debouncedSearchTerm.trim()) return nodes;
-
-    const lowerFilter = debouncedSearchTerm.toLowerCase();
-    const matchingNodes = new Set<string>();
-    const ancestorNodes = new Set<string>();
-
-    const addAncestors = (nodeId: string) => {
-      const node = nodes.find(n => n.id === nodeId);
-      if (node?.parent_run_id) {
-        ancestorNodes.add(node.parent_run_id);
-        addAncestors(node.parent_run_id);
-      }
-    };
-
-    const addDescendants = (nodeId: string) => {
-      nodes.forEach(child => {
-        if (child.parent_run_id === nodeId) {
-          matchingNodes.add(child.id);
-          addDescendants(child.id);
-        }
-      });
-    };
-
-    // find matching nodes and their descendants
-    nodes.forEach(node => {
-      if (node.name.toLowerCase().includes(lowerFilter)) {
-        matchingNodes.add(node.id);
-        addDescendants(node.id);
-      }
-    });
-
-    // add ancestors of all matching nodes
-    matchingNodes.forEach(nodeId => {
-      addAncestors(nodeId);
-    });
-
-    // return all nodes that are either matching, descendants, or ancestors
-    return nodes.filter(node => 
-      matchingNodes.has(node.id) || 
-      ancestorNodes.has(node.id)
-    );
-  }, [nodes, debouncedSearchTerm]);
-
   // build expanded tree structure with lazy loading
   const treeNodes = useMemo(() => {
-    // when searching, process all filtered nodes to ensure search results are visible
-    // when not searching, only process nodes that are root nodes or have loaded children
-    const nodesToProcess = debouncedSearchTerm.trim()
-      ? filteredNodes
-      : filteredNodes.filter(node => 
-          !node.parent_run_id || loadedChildren.has(node.parent_run_id)
-        );
-    
-    const tree = buildTraceTree(nodesToProcess);
-    
     const applyExpandedState = (nodes: TreeNode[]): TreeNode[] => {
       return nodes.map(node => ({
         ...node,
@@ -125,26 +87,56 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         children: applyExpandedState(node.children)
       }));
     };
-    
+
+    // search logic - process all nodes that match the search term and their ancestors
+    if (debouncedSearchTerm.trim()) {
+      const matchingIds = getMatchingNodeIds(debouncedSearchTerm);
+      const neededIds = new Set(matchingIds);
+
+      matchingIds.forEach(id => {
+        let currentNode = nodes.find(n => n.id === id);
+        while (currentNode && currentNode.parent_run_id) {
+          neededIds.add(currentNode.parent_run_id);
+          currentNode = nodes.find(n => n.id === currentNode?.parent_run_id);
+        }
+      });
+
+      // build tree with only needed nodes
+      const nodesToProcess = nodes.filter(n => neededIds.has(n.id));
+      const tree = buildTraceTree(nodesToProcess);
+      return applyExpandedState(tree);
+    }
+
+    // normal lazy loading logic - only process nodes that are root nodes or have loaded children
+    const nodesToProcess = nodes.filter(node =>
+      !node.parent_run_id || loadedChildren.has(node.parent_run_id)
+    );
+
+    const tree = buildTraceTree(nodesToProcess);
     return applyExpandedState(tree);
-  }, [filteredNodes, expandedNodes, loadedChildren, debouncedSearchTerm]);
+  }, [expandedNodes, loadedChildren, debouncedSearchTerm, nodes, searchIndex]);
 
   // render tree node
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
     const isSelected = selectedNodeId === node.id;
     const isExpanded = node.isExpanded;
 
-    // check if this node has children in the filtered data
-    const hasChildrenInData = filteredNodes.some(n => n.parent_run_id === node.id);
+    const isSearching = debouncedSearchTerm.trim() !== '';
+    const hasChildrenInData = nodes.some(n => n.parent_run_id === node.id);
     const hasLoadedChildren = node.children.length > 0;
+    const shouldShowChildren = isSearching ? hasLoadedChildren : (hasLoadedChildren && isExpanded);
+    const isMatchingSearch = isSearching &&
+      searchIndex.find(item => item.id === node.id)?.name.includes(debouncedSearchTerm.toLowerCase());
 
     return (
       <div key={node.id}>
         <div
           onClick={() => handleNodeSelect(node)}
-          className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${isSelected
-            ? "bg-blue-50 border-blue-300 shadow-sm"
-            : "bg-white border-gray-200 hover:bg-gray-50"
+          className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${isMatchingSearch
+            ? "bg-yellow-50 border-yellow-300 shadow-sm" // highlight search matches
+            : isSelected
+              ? "bg-blue-50 border-blue-300 shadow-sm"
+              : "bg-white border-gray-200 hover:bg-gray-50"
             }`}
           style={{ marginLeft: `${depth * 20}px` }}
         >
@@ -197,7 +189,7 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         </div>
 
         {/* children */}
-        {hasLoadedChildren && isExpanded && (
+        {shouldShowChildren && (
           <div className="mt-1 space-y-1">
             {node.children.map((child) => renderTreeNode(child, depth + 1))}
           </div>
@@ -210,9 +202,6 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">Trace Tree</h3>
-        <div className="text-sm text-gray-500">
-          {filteredNodes.length} of {nodes.length} runs
-        </div>
       </div>
 
       {/* name filter */}

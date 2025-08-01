@@ -19,6 +19,7 @@
 ## Performance 
 - Lazy loading only processes and renders nodes that have been expanded
 - Memoization uses useMemo for filtering and tree building
+- Search based on search index
 
 ## Code Organization
 - Separated renderers so each data type has its own component
@@ -33,7 +34,7 @@
 # Future Improvements
 
 ## Performance
-- Server side pagination/filtering to prevent downloading all trace data at once
+- Server side search/pagination to prevent downloading all trace data at once
 - Cache loaded nodes or frequently accessed ones
 
 ## Trace Viewer
@@ -41,5 +42,5 @@
 - Collapse all, expand all functionality
 
 # Challenges
-- Lazy load and search: lazy loading only processes nodes that were expanded, but the search filtering was only happening on the processed nodes, so search couldn't find nodes that hadn't been loaded yet. The solution was when searching, temporarily process relevant nodes, and when not searching, still use lazy loading.
+- Lazy load and search: lazy loading only processes nodes that were expanded, but the search filtering was only happening on the processed nodes, so search couldn't find nodes that hadn't been loaded yet. The first solution was when searching, build the complete tree then filter it, and when not searching, still use lazy loading. I assessed that this could be slow, so I implemented an index-based search, so we only process the relevant nodes (matches and their ancestors) to build a minimal tree.
 - First time using Tailwind CSS, but I like it
