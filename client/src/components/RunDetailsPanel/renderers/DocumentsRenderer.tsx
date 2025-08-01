@@ -14,7 +14,7 @@ const DocumentsRenderer = ({ documents }: DocumentsRendererProps) => {
         <div key={index} className="p-3 border border-gray-200 rounded-lg bg-white">
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-blue-600" />
+              <Database className="w-4 h-4" />
               <span className="text-sm font-medium text-gray-900">
                 Document {index + 1}
               </span>

@@ -27,22 +27,22 @@ const MessagesRenderer = ({ messages }: MessagesRendererProps) => {
         
         const isSystem = messageType === "system";
         const isHuman = messageType === "human" || messageType === "user";
-        const isAI = messageType === "ai" || messageType === "assistant";
+        const isAI = messageType === "ai";
         
         return (
           <div key={index} className={`p-3 rounded-lg border ${
             isSystem ? "bg-blue-50 border-blue-200" :
-            isHuman ? "bg-gray-50 border-gray-200" :
+            isHuman ? "bg-orange-50 border-orange-200" :
             isAI ? "bg-green-50 border-green-200" :
             "bg-white border-gray-200"
           }`}>
             <div className="flex items-center gap-2 mb-2">
               {isSystem && <Code className="w-4 h-4 text-blue-600" />}
-              {isHuman && <MessageSquare className="w-4 h-4 text-gray-600" />}
+              {isHuman && <MessageSquare className="w-4 h-4 text-orange-600" />}
               {isAI && <MessageSquare className="w-4 h-4 text-green-600" />}
               <span className={`text-xs font-medium ${
                 isSystem ? "text-blue-700" :
-                isHuman ? "text-gray-700" :
+                isHuman ? "text-orange-700" :
                 isAI ? "text-green-700" :
                 "text-gray-700"
               }`}>
