@@ -1,5 +1,12 @@
 # LangSmith Trace Viewer - Frontend Interview Assignment
 
+## What's left
+- clean up functions and components
+- performance
+     - implemented simple lazy load
+     - but more to be done there
+- write doc
+
 ## Overview
 
 This is a **take-home frontend interview assignment** where candidates implement a hierarchical trace viewer for LangSmith execution traces. Users should be able to navigate through trace execution trees, view individual run details, and understand the flow of LLM app executions.

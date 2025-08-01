@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Search, X } from 'lucide-react';
 import { RunNode } from "../../types";
 import { buildTraceTree, TreeNode } from "../../utils/treeBuilder";
 import { getRunTypeColor, getStatusColor } from '../../utils/colors';
+import { useDebouncedCallback } from 'use-debounce';
 
 interface TraceTreeProps {
   nodes: RunNode[];
@@ -12,11 +13,11 @@ interface TraceTreeProps {
 
 const formatDuration = (startTime: string, endTime: string | null): string => {
   if (!endTime) return "Running...";
-  
+
   const start = new Date(startTime);
   const end = new Date(endTime);
   const duration = end.getTime() - start.getTime();
-  
+
   if (duration < 1000) return `${duration}ms`;
   if (duration < 60000) return `${(duration / 1000).toFixed(1)}s`;
   return `${(duration / 60000).toFixed(1)}m`;
@@ -32,55 +33,21 @@ const formatDuration = (startTime: string, endTime: string | null): string => {
 function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [loadedChildren, setLoadedChildren] = useState<Set<string>>(new Set());
-  const [nameFilter, setNameFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
-  // filter nodes by name and their children
-  const filteredNodes = useMemo(() => {
-    if (!nameFilter.trim()) return nodes;
-    
-    const lowerFilter = nameFilter.toLowerCase();
-    const matchingNodes = new Set<string>();
-    
-    // find matching nodes and their children
-    nodes.forEach(node => {
-      if (node.name.toLowerCase().includes(lowerFilter)) {
-        matchingNodes.add(node.id);
-        
-        const addChildren = (nodeId: string) => {
-          nodes.forEach(child => {
-            if (child.parent_run_id === nodeId) {
-              matchingNodes.add(child.id);
-              addChildren(child.id);
-            }
-          });
-        };
-        addChildren(node.id);
-      }
-    });
-    
-    return nodes.filter(node => matchingNodes.has(node.id));
-  }, [nodes, nameFilter]);
+  // debounced search
+  const debouncedSetSearchTerm = useDebouncedCallback(
+    (value: string) => {
+      setDebouncedSearchTerm(value);
+    },
+    300
+  );
 
-  // build expanded tree structure with lazy loading
-  const treeNodes = useMemo(() => {
-    // Only process nodes that are root nodes or have loaded children
-    const nodesToProcess = filteredNodes.filter(node => 
-      !node.parent_run_id || loadedChildren.has(node.parent_run_id)
-    );
-    console.log('nodesToProcess', nodesToProcess);
-    
-    const tree = buildTraceTree(nodesToProcess);
-    
-    const applyExpandedState = (nodes: TreeNode[]): TreeNode[] => {
-      return nodes.map(node => ({
-        ...node,
-        isExpanded: expandedNodes.has(node.id),
-        children: applyExpandedState(node.children)
-      }));
-    };
-    
-    return applyExpandedState(tree);
-  }, [filteredNodes, expandedNodes, loadedChildren]);
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    debouncedSetSearchTerm(value);
+  };
 
   const handleNodeSelect = (node: TreeNode) => {
     onNodeSelect?.(node);
@@ -93,32 +60,81 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
         newSet.delete(nodeId);
       } else {
         newSet.add(nodeId);
-        // Load children when expanding for the first time
-        if (!loadedChildren.has(nodeId)) {
-          setLoadedChildren(prevLoaded => new Set([...prevLoaded, nodeId]));
-        }
+        // mark children as loaded when expanding
+        setLoadedChildren(prevLoaded => {
+          const newLoaded = new Set(prevLoaded);
+          newLoaded.add(nodeId);
+          return newLoaded;
+        });
       }
       return newSet;
     });
   };
 
+  // filter nodes by name and their children
+  const filteredNodes = useMemo(() => {
+    if (!debouncedSearchTerm.trim()) return nodes;
+
+    const lowerFilter = debouncedSearchTerm.toLowerCase();
+    const matchingNodes = new Set<string>();
+
+    // find matching nodes and their children
+    nodes.forEach(node => {
+      if (node.name.toLowerCase().includes(lowerFilter)) {
+        matchingNodes.add(node.id);
+
+        const addChildren = (nodeId: string) => {
+          nodes.forEach(child => {
+            if (child.parent_run_id === nodeId) {
+              matchingNodes.add(child.id);
+              addChildren(child.id);
+            }
+          });
+        };
+        addChildren(node.id);
+      }
+    });
+
+    return nodes.filter(node => matchingNodes.has(node.id));
+  }, [nodes, debouncedSearchTerm]);
+
+  // build expanded tree structure with lazy loading
+  const treeNodes = useMemo(() => {
+    // only process nodes that are root nodes or have loaded children
+    const nodesToProcess = filteredNodes.filter(node =>
+      !node.parent_run_id || loadedChildren.has(node.parent_run_id)
+    );
+
+    const tree = buildTraceTree(nodesToProcess);
+
+    const applyExpandedState = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.map(node => ({
+        ...node,
+        isExpanded: expandedNodes.has(node.id),
+        children: applyExpandedState(node.children)
+      }));
+    };
+
+    return applyExpandedState(tree);
+  }, [filteredNodes, expandedNodes, loadedChildren]);
+
+  // render tree node
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
-    // Check if this node has children in the original data
+    const isSelected = selectedNodeId === node.id;
+    const isExpanded = node.isExpanded;
+
+    // check if this node has children in the original data
     const hasChildrenInData = nodes.some(n => n.parent_run_id === node.id);
     const hasLoadedChildren = node.children.length > 0;
-    const isSelected = selectedNodeId === node.id;
-    const isExpanded = expandedNodes.has(node.id);
 
     return (
-      <div key={node.id} className="w-full">
-        {/* node itself */}
+      <div key={node.id}>
         <div
           onClick={() => handleNodeSelect(node)}
-          className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${
-            isSelected
-              ? "bg-blue-50 border-blue-300 shadow-sm"
-              : "bg-white border-gray-200 hover:bg-gray-50"
-          }`}
+          className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${isSelected
+            ? "bg-blue-50 border-blue-300 shadow-sm"
+            : "bg-white border-gray-200 hover:bg-gray-50"
+            }`}
           style={{ marginLeft: `${depth * 20}px` }}
         >
           {/* expand/collapse button */}
@@ -187,34 +203,41 @@ function TraceTree({ nodes, onNodeSelect, selectedNodeId }: TraceTreeProps) {
           {filteredNodes.length} of {nodes.length} runs
         </div>
       </div>
-      
+
       {/* name filter */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
-          value={nameFilter}
-          onChange={(e) => setNameFilter(e.target.value)}
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search by name..."
           className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        {nameFilter && (
+        {searchInput && (
           <button
-            onClick={() => setNameFilter('')}
+            onClick={() => handleSearchChange('')}
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             <X className="w-4 h-4" />
           </button>
         )}
+
+        {/* search loader */}
+        {searchInput !== debouncedSearchTerm && (
+          <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+          </div>
+        )}
       </div>
-      
+
       <div className="space-y-1">
         {treeNodes.map((node) => renderTreeNode(node))}
       </div>
       
       {treeNodes.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No trace data available
+          {debouncedSearchTerm ? 'No matching traces found' : 'No trace data available'}
         </div>
       )}
     </div>

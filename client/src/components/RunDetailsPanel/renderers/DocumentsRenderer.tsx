@@ -1,7 +1,8 @@
 import { Database, ExternalLink } from "lucide-react";
+import { RunContent } from "../../../types";
 
 interface DocumentsRendererProps {
-  documents: any[];
+  documents: RunContent['outputs']['documents'];
 }
 
 const DocumentsRenderer = ({ documents }: DocumentsRendererProps) => {
@@ -9,7 +10,7 @@ const DocumentsRenderer = ({ documents }: DocumentsRendererProps) => {
 
   return (
     <div className="space-y-3">
-      {documents.map((doc: any, index: number) => (
+      {documents.map((doc: RunContent['outputs']['documents'][number], index: number) => (
         <div key={index} className="p-3 border border-gray-200 rounded-lg bg-white">
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">

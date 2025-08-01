@@ -1,7 +1,8 @@
 import { Code, MessageSquare } from "lucide-react";
+import { RunContent } from "../../../types";
 
 interface MessagesRendererProps {
-  messages: any[];
+  messages: RunContent['outputs']['messages'];
 }
 
 const MessagesRenderer = ({ messages }: MessagesRendererProps) => {
@@ -9,7 +10,7 @@ const MessagesRenderer = ({ messages }: MessagesRendererProps) => {
 
   return (
     <div className="space-y-3">
-      {messages.flat().map((message: any, index: number) => {
+      {messages.flat().map((message: RunContent['outputs']['messages'][number], index: number) => {
         // handle both lc format (with kwargs) and simplified format
         let messageData = message;
         

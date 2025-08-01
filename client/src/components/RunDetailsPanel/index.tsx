@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AlertCircle, FileText, MessageSquare } from "lucide-react";
 import { RunContent, RunNode } from "../../types";
 import { getRunTypeColor, getStatusColor } from "../../utils/colors";
-import { DocumentsRenderer, GenerationsRenderer, MessagesRenderer, QueryRenderer, ToolCallsRenderer } from "./renderers";
+import { DocumentsRenderer, GenerationsRenderer, MessagesRenderer, QueryRenderer } from "./renderers";
 
 interface RunDetailsPanelProps {
   selectedNode: RunNode | null;
@@ -31,7 +31,7 @@ function RunDetailsPanel({ selectedNode }: RunDetailsPanelProps) {
         if (!response.ok) {
           setRunContent(null);
           if (response.status === 404) {
-            setApiError(null); // 404 is not an error, just no content
+            setApiError(null); // 404 should not display an error string, just no content
           } else {
             setApiError(`Failed to fetch run content with HTTP status ${response.status} ${response.statusText}`);
           }
@@ -189,23 +189,14 @@ function RunDetailsPanel({ selectedNode }: RunDetailsPanelProps) {
                 </div>
               )}
 
-              {/* tool calls */}
-              {runContent.outputs.tool_calls && (
-                <div>
-                  <h5 className="text-sm font-medium text-gray-700 mb-2">Tool Calls</h5>
-                  <ToolCallsRenderer toolCalls={runContent.outputs.tool_calls} />
-                </div>
-              )}
-
               {/* other outputs */}
-              {!runContent.outputs.messages && 
-               !runContent.outputs.documents && 
-               !runContent.outputs.generations && 
-               !runContent.outputs.tool_calls && (
-                <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto">
-                  {JSON.stringify(runContent.outputs, null, 2)}
-                </pre>
-              )}
+              {!runContent.outputs.messages &&
+                !runContent.outputs.documents &&
+                !runContent.outputs.generations && (
+                  <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto">
+                    {JSON.stringify(runContent.outputs, null, 2)}
+                  </pre>
+                )}
             </div>
           </div>
         </div>
