@@ -1,16 +1,19 @@
 import { Code, MessageSquare } from "lucide-react";
-import { RunContent } from "../../../types";
 
 interface MessagesRendererProps {
-  messages: RunContent['outputs']['messages'];
+  messages: any[];
 }
 
+/**
+ * MessagesRenderer is a component that renders the messages output/input of a run.
+ * @param messages - The messages to render.
+ */
 const MessagesRenderer = ({ messages }: MessagesRendererProps) => {
   if (!Array.isArray(messages)) return null;
 
   return (
     <div className="space-y-3">
-      {messages.flat().map((message: RunContent['outputs']['messages'][number], index: number) => {
+      {messages.flat().map((message: any, index: number) => {
         // handle both lc format (with kwargs) and simplified format
         let messageData = message;
         

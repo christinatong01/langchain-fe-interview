@@ -1,16 +1,19 @@
 import { MessageSquare } from "lucide-react";
-import { RunContent } from "../../../types";
 
 interface GenerationsRendererProps {
-  generations: RunContent['outputs']['generations'];
+  generations: any[];
 }
 
+/**
+ * GenerationsRenderer is a component that renders the generations output of a run.
+ * @param generations - The generations to render.
+ */
 const GenerationsRenderer = ({ generations }: GenerationsRendererProps) => {
   if (!Array.isArray(generations)) return null;
 
   return (
     <div className="space-y-3">
-      {generations.flat().map((gen: RunContent['outputs']['generations'][number], index: number) => (
+      {generations.flat().map((gen: any, index: number) => (
         <div key={index} className="p-3 border border-green-200 rounded-lg bg-green-50">
           <div className="flex items-center gap-2 mb-2">
             <MessageSquare className="w-4 h-4 text-green-600" />

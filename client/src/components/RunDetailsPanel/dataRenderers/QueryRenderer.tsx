@@ -4,6 +4,10 @@ interface QueryRendererProps {
   query: string;
 }
 
+/**
+ * QueryRenderer is a component that renders the query input of a run.
+ * @param query - The query to render.
+ */
 const QueryRenderer = ({ query }: QueryRendererProps) => {
   return (
     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
