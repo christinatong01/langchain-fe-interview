@@ -35,11 +35,12 @@
 
 ## Performance
 - Server side search/pagination to prevent downloading all trace data at once
-- Cache loaded nodes or frequently accessed ones
+- Cache run details (input/output), so we don't need to load it every time, invalidate cache when collapse all or collapse parent
 
 ## Trace Viewer
-- Add additional search options for status, run type, id, and status
+- Improve search by ensuring the tree isn't frozen afterwards, and add additional search options for status, run type, id, and status
 - Collapse all, expand all functionality
+- Format the run details better, based on context and what users need
 
 # Challenges
 - Lazy load and search: lazy loading only processes nodes that were expanded, but the search filtering was only happening on the processed nodes, so search couldn't find nodes that hadn't been loaded yet. The first solution was when searching, build the complete tree then filter it, and when not searching, still use lazy loading. I assessed that this could be slow, so I implemented an index-based search, so we only process the relevant nodes (matches and their ancestors) to build a minimal tree.
